@@ -3,13 +3,14 @@ OBJ_DIR = build
 
 APP = $(OBJ_DIR)/Application.jar
 
-JR = C:\Program Files\Java\jdk-19\bin\jar.exe
+JR = jar
 RM = rm -f
-JC = C:\Program Files\Java\jdk-19\bin\javac.exe
+JC = javac
 
 PJAR = $(OBJ_DIR)/parcs.jar
 SRC = $(wildcard $(SRC_DIR)/*.java)
 OBJ := $(SRC:%.java=%.class)
+JAR_OBJ := $(OBJ:$(SRC_DIR)/%.class= -C $(SRC_DIR) %.class)
 
 all: run
 
@@ -17,7 +18,7 @@ clean:
 	$(RM) $(APP)
 
 $(APP): $(PJAR) $(OBJ)
-	$(JR) cf $@ $(OBJ)
+	$(JR) cf $@ $(JAR_OBJ)
 	$(RM) $(OBJ)
 
 $(OBJ): $(SRC)
@@ -26,4 +27,4 @@ $(OBJ): $(SRC)
 build: $(APP)
 
 run: $(APP)
-	cd build && java -cp 'parcs.jar;Application.jar' Application
+	cd build && java -cp 'parcs.jar:Application.jar' Application
