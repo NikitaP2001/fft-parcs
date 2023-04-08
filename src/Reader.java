@@ -10,8 +10,8 @@ import javax.sound.sampled.AudioFormat;
 
 public class Reader {
 
-	AudioInputStream audioIn;
-	AudioFormat format;
+	private AudioInputStream audioIn;
+	private AudioFormat format;
 
 	public Reader(File wavFile) throws UnsupportedAudioFileException, IOException {
 

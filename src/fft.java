@@ -46,6 +46,11 @@ public class fft implements AM {
                 init();
         }
 
+        /* for instantiation by daemon, then fft.readCfg should be used */
+        public fft() {
+
+        }
+
 
         /* entry for parcs daemons. */
         public void run(AMInfo info) {
@@ -89,7 +94,7 @@ public class fft implements AM {
                 }
 
                 recombine(outPos, p, m, fstride);
-                info.parent.write(new RoundResult().result = out);
+                info.parent.write(new RoundResult(out));
         }       
 
         public RoundCfg getCfg() {
@@ -175,6 +180,7 @@ public class fft implements AM {
                 RoundCfg cfg = new RoundCfg();
                 cfg.in = in;
                 cfg.factors = factors;
+                cfg.twiddles = twiddles;
                 cfg.isInverse = isInverse;
                 cfg.inPos = inPos;
                 cfg.outPos = outPos;
