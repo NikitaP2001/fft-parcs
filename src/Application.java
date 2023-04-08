@@ -10,7 +10,7 @@ import parcs.*;
 
 public class Application {
         private static final String inFileName = "sample.wav";
-        private static final int trackSize = 2048;
+        private static final int trackSize = 65536;
         private Reader audioReader;
         private List<SoundTrack> tracks;
 
@@ -30,6 +30,7 @@ public class Application {
                         List<channel> channels = new ArrayList<>();
                         List<point> points = new ArrayList<>();
 
+                        int t = 0;
                         for (var track : tracks) {
                                 point p = info.createPoint();
                                 channel c = p.createChannel();
@@ -38,8 +39,10 @@ public class Application {
                                 c.write(inst.getCfg());
                                 points.add(p);
                                 channels.add(c);
+                                System.out.println("opened " + t++);
                         }
 
+                        t = 0;
                         for (int i = 0; i < points.size(); i++) {
                                 channel c = channels.get(i);
                                 point p = points.get(i);
@@ -47,8 +50,10 @@ public class Application {
                                 p.execute("fft");
                                 fft inst = new fft(out.result);
                                 c.write(inst.getCfg());
+                                System.out.println("inversed " + t++);
                         }
 
+                        t = 0;
                         for (int i = 0; i < points.size(); i++) {
                                 channel c = channels.get(i);
                                 RoundResult out = (RoundResult)c.readObject();
@@ -59,6 +64,7 @@ public class Application {
                                                 System.out.println("Inverse failed");
                                         }
                                 }
+                                System.out.println("finished " + t++);
                         }
 
 

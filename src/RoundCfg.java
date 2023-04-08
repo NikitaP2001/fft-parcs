@@ -10,4 +10,6 @@ public class RoundCfg implements Serializable {
         public int inPos;
         public int outPos;
         public int fftStride;
+        public int m;
+        public int p;
 }
