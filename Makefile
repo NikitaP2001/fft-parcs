@@ -26,5 +26,10 @@ $(OBJ): $(SRC)
 
 build: $(APP)
 
+ifeq ($(OS),Windows_NT)   
+run: $(APP)
+	cd build && java -cp 'parcs.jar;Application.jar' Application
+else    
 run: $(APP)
 	cd build && java -cp 'parcs.jar:Application.jar' Application
+endif
