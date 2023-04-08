@@ -27,7 +27,7 @@ public class Application {
         private void run(AMInfo info) {
                 boolean isRead = initFileInfo(info.curtask.findFile(inFileName));
                 if (isRead) {
-                        List<channel> chann = new ArrayList<>();
+                        List<channel> channels = new ArrayList<>();
                         List<point> points = new ArrayList<>();
 
                         for (var track : tracks) {
@@ -37,8 +37,30 @@ public class Application {
                                 fft inst = new fft(track.channels.get(0));
                                 c.write(inst.getCfg());
                                 points.add(p);
-                                chann.add(c);
+                                channels.add(c);
                         }
+
+                        for (int i = 0; i < points.size(); i++) {
+                                channel c = channels.get(i);
+                                point p = points.get(i);
+                                RoundResult out = (RoundResult)c.readObject();
+                                p.execute("fft");
+                                fft inst = new fft(out.result);
+                                c.write(inst.getCfg());
+                        }
+
+                        for (int i = 0; i < points.size(); i++) {
+                                channel c = channels.get(i);
+                                RoundResult out = (RoundResult)c.readObject();
+                                int[] realVal = tracks.get(i).channels.get(0);
+                                int[] got = fft.cpxToInt(out.result);
+                                for (int j = 0; j < realVal.length; j++) {
+                                        if (realVal[i] != got[i]) {
+                                                System.out.println("Inverse failed");
+                                        }
+                                }
+                        }
+
 
                 }
         }
