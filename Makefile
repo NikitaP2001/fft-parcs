@@ -38,3 +38,6 @@ else
 run: $(APP)
 	cd build && java -cp 'parcs.jar:Application.jar' Application $(ARGS)
 endif
+
+plot:
+	cd build && java -cp WavePlot.jar Application -f $(FO)
