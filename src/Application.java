@@ -52,7 +52,7 @@ public class Application {
         private static void printHeap() {
                 long heapSize = Runtime.getRuntime().totalMemory(); 
                 long heapMaxSize = Runtime.getRuntime().maxMemory();
-                System.out.println("curr heap: " + heapSize + " heapMaxSize: " + heapMaxSize);
+                System.out.println("curr heap: " + heapSize + " heap max : " + heapMaxSize);
         }
 
         private boolean runForward(AMInfo info) {
@@ -128,12 +128,12 @@ public class Application {
         private void run(AMInfo info) {
                 boolean isRead = initFileInfo(info.curtask.findFile(inFileName), info.curtask.findFile(outFileName));
                 if (isRead) {
-                        printHeap();
                         while (!runForward(info)) {
+                                printHeap();
                                 runInverse(info); 
-                                writeResult();
+                                writeResult();                                
                                 points.clear();
-                                channels.clear();
+                                channels.clear();                                                        
                         }
 
                         if (audioWriter.commit())
