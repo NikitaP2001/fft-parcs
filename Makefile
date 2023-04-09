@@ -2,6 +2,11 @@ SRC_DIR = src
 OBJ_DIR = build
 
 APP = $(OBJ_DIR)/Application.jar
+FIN = sample.wav
+FO = result.wav
+FMIN = 0
+FMAX = 22200
+ARGS = -f $(FIN) -o $(FO) -m $(FMIN) -M $(FMAX)
 
 JR = jar
 RM = rm -f
@@ -28,8 +33,8 @@ build: $(APP)
 
 ifeq ($(OS),Windows_NT)   
 run: $(APP)
-	cd build && java -cp 'parcs.jar;Application.jar' Application
+	cd build && java -cp 'parcs.jar;Application.jar' Application $(ARGS)
 else    
 run: $(APP)
-	cd build && java -cp 'parcs.jar:Application.jar' Application
+	cd build && java -cp 'parcs.jar:Application.jar' Application $(ARGS)
 endif
