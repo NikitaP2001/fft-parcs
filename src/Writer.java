@@ -1,6 +1,7 @@
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.SequenceInputStream;
 import java.nio.ByteBuffer;
 
 import javax.sound.sampled.AudioSystem;
@@ -11,20 +12,36 @@ import javax.sound.sampled.AudioFormat;
 public class Writer {
 	private AudioFormat playFormat;
         private File aFile;
+        AudioInputStream bufStream;
 
         public Writer(File outFile, AudioFormat format) {
                 aFile = outFile;
                 playFormat = format;
         }
         
-        public boolean write(SoundTrack track) {
-                boolean result = true;
+        public void write(SoundTrack track) {
+                byte[] soundData = formDataLine(track);
+                ByteArrayInputStream bais = new ByteArrayInputStream(soundData);
+
+                if (bufStream == null) {
+                        bufStream = new AudioInputStream(bais, playFormat, soundData.length);
+                } else {
+                        AudioInputStream newStream = new AudioInputStream(bais, playFormat, soundData.length);
+                        bufStream = new AudioInputStream(
+                        new SequenceInputStream(bufStream, newStream), bufStream.getFormat(), 
+                        bufStream.getFrameLength() + newStream.getFrameLength());
+                }
+        }
+
+        public boolean commit() {
+                boolean result = false;
                 try {
-                        byte[] soundData = formDataLine(track);
-                        ByteArrayInputStream bais = new ByteArrayInputStream(soundData);
-                        AudioInputStream audioInputStream = new AudioInputStream(bais, playFormat, soundData.length);
-                        AudioSystem.write(audioInputStream, AudioFileFormat.Type.WAVE, aFile);
-                        audioInputStream.close();
+                        if (bufStream != null) {
+                                AudioSystem.write(bufStream, AudioFileFormat.Type.WAVE, aFile);
+                                bufStream.close();
+                                result = true;
+                                bufStream = null;
+                        }
                 } catch (IOException e) {
                         e.printStackTrace();
                         result = false;

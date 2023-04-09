@@ -10,67 +10,116 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import parcs.*;
 
 public class Application {
-        private static final String inFileName = "sample.wav";
-        private static final String outFileName = "result.wav";
         private static final int trackSize = 65536;
         private Reader audioReader;
         private Writer audioWriter;
         private AudioFormat sampleFormat;
-        private List<SoundTrack> tracks;
-
+        private List<channel> channels = new ArrayList<>();
+        private List<point> points = new ArrayList<>();
+        private float sampleRate;
+        private String inFileName = "sample.wav";
+        private String outFileName = "result.wav";
+        private int filterMin = 0;
+        private int filterMax = 22000;
 
         public static void main(String[] args) {
                 task curTask = new task();
                 curTask.addJarFile("Application.jar");
-                Application app = new Application();
+                Application app = new Application(args);
                 AMInfo info = new AMInfo(curTask, null);
                 app.run(info);
                 curTask.end();
         }
 
-        private void run(AMInfo info) {
-                boolean isRead = initFileInfo(info.curtask.findFile(inFileName), info.curtask.findFile(outFileName));
-                if (isRead) {
-                        List<channel> channels = new ArrayList<>();
-                        List<point> points = new ArrayList<>();
-
-                        int t = 0;
-                        for (var track : tracks) {
-                                for (var ch : track.channels) {
-                                        point p = info.createPoint();
-                                        channel c = p.createChannel();
-                                        p.execute("fft");
-                                        fft inst = new fft(ch);
-                                        c.write(inst.getCfg());
-                                        points.add(p);
-                                        channels.add(c);
-                                        System.out.println("opened " + t++);
-                                }
+        public Application(String[] args) {
+                try {
+                        for (int i = 0; i + 1 < args.length; i++) {
+                                if (args[i].equals("-f"))
+                                        inFileName = args[++i];
+                                else if (args[i].equals("-o"))
+                                        outFileName = args[++i];
+                                else if (args[i].equals("-m"))
+                                        filterMin = Integer.valueOf(args[++i]);
+                                else if (args[i].equals("-M"))
+                                        filterMax = Integer.valueOf(args[++i]);
                         }
+                } catch (NumberFormatException ex) {
+                        System.out.println("[-] Wrong argument provided");
+                }
+        }
 
-                        t = 0;
-                        for (int i = 0; i < points.size(); i++) {
-                                RoundResult out = (RoundResult)channels.get(i).readObject();
+        private void runForward(AMInfo info) {
+                SoundTrack track;
+                while (!(track = readTrack()).isEmpty()) {
+                        for (var ch : track.channels) {
                                 point p = info.createPoint();
                                 channel c = p.createChannel();
                                 p.execute("fft");
-                                fft inst = new fft(out.result);
+                                fft inst = new fft(ch);
                                 c.write(inst.getCfg());
-                                System.out.println("inversed " + t++);
-                                points.set(i, p);
-                                channels.set(i, c);
+                                points.add(p);
+                                channels.add(c);
                         }
+                }
+        }
 
-                        t = 0;
-                        for (int i = 0; i < points.size(); i++) {
-                                for (int chi = 0; chi < tracks.get(i).channels.size(); chi++) {
-                                        channel c = channels.get(i);
-                                        RoundResult out = (RoundResult)c.readObject();
-                                        ch = fft.cpxToInt(out.result);
-                                        System.out.println("finished " + t++);
-                                }
-                                audioWriter.write(tracks.get(i));
+        private fft_cpx[] filter(fft_cpx[] data, float minPass, float maxPass) {
+                int nNyquist = data.length / 2;
+                float freqPerBin = sampleRate / (2 * nNyquist);
+                for (int i = 0; i < data.length; i++) {
+                        if (i > nNyquist) {
+                                data[i].clear();
+                                continue;
                         }
+                        if (i * freqPerBin < minPass) {
+                                data[i].clear();
+                        } else if (i * freqPerBin > maxPass) {
+                                data[i].clear();
+                        }
+                }
+                return data;
+        }
+
+        private void runInverse(AMInfo info) {
+                for (int i = 0; i < points.size(); i++) {
+                        RoundResult out = (RoundResult)channels.get(i).readObject();
+                        point p = info.createPoint();
+                        channel c = p.createChannel();
+                        p.execute("fft");
+                        fft inst = new fft(filter(out.result, filterMin, filterMax));
+                        c.write(inst.getCfg());
+                        points.set(i, p);
+                        channels.set(i, c);
+                }
+        }
+
+        private boolean writeResult() {
+                int nSoundChan = sampleFormat.getChannels();
+                for (int i = 0; i < points.size() / nSoundChan; i++) {
+                        SoundTrack resTrack = new SoundTrack(sampleFormat, trackSize);
+                        resTrack.length = trackSize;
+                        for (int chi = 0; chi < nSoundChan; chi++) {
+                                int iPC = i * nSoundChan + chi;
+                                RoundResult out = (RoundResult)channels.get(iPC).readObject();
+                                resTrack.channels.set(chi, fft.cpxToInt(out.result));
+                        }
+                        audioWriter.write(resTrack);
+                        
+                }
+                return audioWriter.commit();
+        }
+
+        private void run(AMInfo info) {
+                boolean isRead = initFileInfo(info.curtask.findFile(inFileName), info.curtask.findFile(outFileName));
+                if (isRead) {
+                        runForward(info); 
+
+                        runInverse(info); 
+
+                        if (writeResult())
+                                System.out.println("[+] result written");
+                        else
+                                System.out.println("[-] error writing result");
                 }
         }
 
@@ -78,9 +127,9 @@ public class Application {
                 boolean result = false;
                 try {
                         audioReader = new Reader(new File(inPath));
-                        audioWriter = new Writer(new File(outPath), sampleFormat);
                         sampleFormat = audioReader.getFormat();
-                        tracks = readAudioFile();
+                        sampleRate = sampleFormat.getSampleRate();
+                        audioWriter = new Writer(new File(outPath), sampleFormat);
                         result = true;
                 } catch (UnsupportedAudioFileException ex) {
 			System.out.println("Unsupported: " + ex.getMessage());
@@ -89,21 +138,15 @@ public class Application {
 		}
                 return result;
         }
-        
-        private List<SoundTrack> readAudioFile() {
-                List<SoundTrack> tracks = new ArrayList<>();
+
+        private SoundTrack readTrack() {
+                SoundTrack res = null;
                 try {
-                        SoundTrack res = null;
-                        do { 
-                                res = audioReader.read(trackSize);
-                                if (res.length != 0)
-                                        tracks.add(res);
-                        } while (!res.isEmpty());
+                        res = audioReader.read(trackSize);
                 } catch (IOException ex) {
                         System.out.println("Error: " + ex.getMessage());
                         System.exit(0);
                 }
-                return tracks;
+                return res;
         }
-
 }

@@ -14,6 +14,11 @@ public class fft_cpx implements Serializable {
                 this.imag = 0;
         }
 
+        public void clear() {
+                real = 0;
+                imag = 0;
+        }
+
         public void cexp(double phase) {
                 real = Math.cos(phase);
                 imag = Math.sin(phase);
