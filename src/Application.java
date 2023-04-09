@@ -11,6 +11,7 @@ import parcs.*;
 
 public class Application {
         private static final int trackSize = 65536;
+        private static final int nMaxChann = 30;
         private Reader audioReader;
         private Writer audioWriter;
         private AudioFormat sampleFormat;
@@ -48,7 +49,13 @@ public class Application {
                 }
         }
 
-        private void runForward(AMInfo info) {
+        private static void printHeap() {
+                long heapSize = Runtime.getRuntime().totalMemory(); 
+                long heapMaxSize = Runtime.getRuntime().maxMemory();
+                System.out.println("curr heap: " + heapSize + " heapMaxSize: " + heapMaxSize);
+        }
+
+        private boolean runForward(AMInfo info) {
                 SoundTrack track;
                 while (!(track = readTrack()).isEmpty()) {
                         for (var ch : track.channels) {
@@ -60,7 +67,10 @@ public class Application {
                                 points.add(p);
                                 channels.add(c);
                         }
+                        if (points.size() >= nMaxChann)
+                                return false;
                 }
+                return true;
         }
 
         private fft_cpx[] filter(fft_cpx[] data, float minPass, float maxPass) {
@@ -81,8 +91,12 @@ public class Application {
         }
 
         private void runInverse(AMInfo info) {
+                boolean first = false;
                 for (int i = 0; i < points.size(); i++) {
+                        long time = System.currentTimeMillis();
                         RoundResult out = (RoundResult)channels.get(i).readObject();
+                        long completedIn = System.currentTimeMillis() - time;
+                        if (!first) { System.out.println("wait for inv: " + completedIn + "ms"); first = true; }
                         point p = info.createPoint();
                         channel c = p.createChannel();
                         p.execute("fft");
@@ -93,30 +107,36 @@ public class Application {
                 }
         }
 
-        private boolean writeResult() {
+        private void writeResult() {
                 int nSoundChan = sampleFormat.getChannels();
+                boolean first = false;
                 for (int i = 0; i < points.size() / nSoundChan; i++) {
                         SoundTrack resTrack = new SoundTrack(sampleFormat, trackSize);
                         resTrack.length = trackSize;
                         for (int chi = 0; chi < nSoundChan; chi++) {
                                 int iPC = i * nSoundChan + chi;
+                                long time = System.currentTimeMillis();
                                 RoundResult out = (RoundResult)channels.get(iPC).readObject();
+                                long completedIn = System.currentTimeMillis() - time;
+                                if (!first) { System.out.println("wait for write: " + completedIn + "ms"); first = true; }
                                 resTrack.channels.set(chi, fft.cpxToInt(out.result));
                         }
                         audioWriter.write(resTrack);
-                        
                 }
-                return audioWriter.commit();
         }
 
         private void run(AMInfo info) {
                 boolean isRead = initFileInfo(info.curtask.findFile(inFileName), info.curtask.findFile(outFileName));
                 if (isRead) {
-                        runForward(info); 
+                        printHeap();
+                        while (!runForward(info)) {
+                                runInverse(info); 
+                                writeResult();
+                                points.clear();
+                                channels.clear();
+                        }
 
-                        runInverse(info); 
-
-                        if (writeResult())
+                        if (audioWriter.commit())
                                 System.out.println("[+] result written");
                         else
                                 System.out.println("[-] error writing result");

@@ -26,6 +26,8 @@ java -jar Daemon.jar&
 #app:
 sudo apt-get update
 sudo apt install openjdk-11-jdk
+sudo apt install git make
+git clone <this_repo>
 cat > out/server
 SELF_IP_HS
 
